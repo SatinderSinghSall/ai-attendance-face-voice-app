@@ -4,6 +4,12 @@ from src.screens.home_screen import home_screen
 from src.screens.teacher_screen import teacher_screen
 from src.screens.student_screen import student_screen
 
+st.set_page_config(
+    page_title="Snap Class - AI Smart Attendance System & Intelligent AI Attendance - Face & Voice.",
+    page_icon="🎓",
+    layout="wide"
+)
+
 def main():
     if 'login_type' not in st.session_state:
         st.session_state['login_type'] = None
