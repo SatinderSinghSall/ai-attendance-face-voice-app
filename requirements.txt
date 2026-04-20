@@ -22,3 +22,7 @@ pillow
 
 # Deployment & Front-End:
 streamlit
+
+# Voice Recognition:
+librosa
+resemblyzer
