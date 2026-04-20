@@ -1,9 +1,12 @@
 import streamlit as st
+import time
 
 from src.ui.base_layout import style_base_layout
 from src.ui.base_layout import style_background_dashboard
 from src.components.header import header_dashboard
 from src.components.footer import footer_dashboard
+from src.database.db import check_teacher_exists, create_teacher, teacher_login
+
 
 def teacher_screen():
     style_base_layout()
@@ -11,13 +14,47 @@ def teacher_screen():
 
     st.session_state.setdefault("teacher_login_type", "login")
 
-    if st.session_state.teacher_login_type == "login":
+    if "teacher_data" in st.session_state:
+        teacher_dashboard()
+    elif st.session_state.teacher_login_type == "login":
         teacher_screen_login()
     elif st.session_state.teacher_login_type == "register":
         teacher_screen_register()
 
     footer_dashboard()
 
+
+# Method for Register Teacher:
+def register_teacher(teacher_name, teacher_username, teacher_password, teacher_password_confirm):
+    if not teacher_name or not teacher_username or not teacher_password or not teacher_password_confirm:
+        return False, "Please enter all the input fields and try again."
+    if check_teacher_exists(teacher_username):
+        return False, "Username is already taken."
+    if teacher_password != teacher_password_confirm:
+        return False, "Passwords do not match."
+
+    try:
+        create_teacher(teacher_username, teacher_password, teacher_name)
+        return True, "Account crated successfully. Login now."
+    except Exception as e:
+        return False, "Unexpected Error Occured."
+
+
+# Method to Login a Teacher:
+def login_teacher(teacher_username, teacher_password):
+    if not teacher_username or not teacher_password:
+        return False
+
+    teacher = teacher_login(teacher_username, teacher_password)
+
+    if teacher:
+        st.session_state.user_role = 'teacher'
+        st.session_state.teacher_data = teacher
+        st.session_state.is_logged_in = True
+        return True
+
+
+# Function / Method for Teacher Login Screen:
 def teacher_screen_login():
     col, col2 = st.columns(2, vertical_alignment="center", gap="xxlarge")
 
@@ -42,7 +79,13 @@ def teacher_screen_login():
     btnCol1, btnCol2 = st.columns(2)
 
     with btnCol1:
-        st.button("Login", icon=":material/passkey:", shortcut="command+enter", width="stretch")
+        if st.button("Login", icon=":material/passkey:", shortcut="command+enter", width="stretch"):
+            if login_teacher(teacher_username, teacher_password):
+                st.toast("Welcome back!", icon="👋🏻")
+                time.sleep(3)
+                st.rerun()
+            else:
+                st.error("Invalid username and password combination.")
 
     with btnCol2:
         if st.button("Register", icon=":material/passkey:", width="stretch", type="primary"):
@@ -50,6 +93,7 @@ def teacher_screen_login():
             st.rerun()
 
 
+# Function / Method for Teacher Register Screen:
 def teacher_screen_register():
     col, col2 = st.columns(2, vertical_alignment="center", gap="xxlarge")
 
@@ -76,10 +120,35 @@ def teacher_screen_register():
     btnCol1, btnCol2 = st.columns(2)
 
     with btnCol1:
-        st.button("Register Now", icon=":material/passkey:", shortcut="command+enter", width="stretch")
+        if st.button("Register Now", icon=":material/passkey:", shortcut="command+enter", width="stretch"):
+            success, message = register_teacher(teacher_name, teacher_username, teacher_password, teacher_password_confirm)
+            if success:
+                st.success(message)
+                time.sleep(4)
+                st.session_state.teacher_login_type = 'login'
+                st.rerun()
+            else:
+                st.error(message)
 
     with btnCol2:
         if st.button("Login", icon=":material/passkey:", width="stretch", type="primary"):
             st.session_state.teacher_login_type = 'login'
             st.rerun()
 
+
+def teacher_dashboard():
+    teacher_data = st.session_state.teacher_data
+
+    st.header(f"Welcome, {teacher_data['name']}")
+    st.divider()
+
+    col1, col2, col3 = st.columns(3)
+
+    with col1:
+        st.button("📚 Manage Subjects", use_container_width=True)
+
+    with col2:
+        st.button("👨‍🎓 Students", use_container_width=True)
+
+    with col3:
+        st.button("📊 Attendance", use_container_width=True)
