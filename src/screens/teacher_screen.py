@@ -8,6 +8,7 @@ from src.components.header import header_dashboard
 from src.components.footer import footer_dashboard
 from src.components.dialog_create_subject import create_subject_dialog
 from src.components.subject_card import subject_card
+from src.components.dialog_share_subject import share_subject_dialog
 
 from src.database.db import check_teacher_exists, create_teacher, teacher_login, get_teacher_subjects
 
@@ -140,6 +141,7 @@ def teacher_screen_register():
             st.rerun()
 
 
+# Method for Teacher Dashboard Screen:
 def teacher_dashboard():
     teacher_data = st.session_state.teacher_data
     col, col2 = st.columns(2, vertical_alignment="center", gap="xxlarge")
@@ -190,10 +192,12 @@ def teacher_dashboard():
        teacher_tab_attendance_records()
 
 
+# Method for Teacher Take Attendance Screen:
 def teacher_tab_take_attendance():
     st.header("Take AI Attendance:")
 
 
+# Method for Teacher Manage Student Screen:
 def teacher_tab_manage_subjects():
     teacher_id = st.session_state.teacher_data['teacher_id']
 
@@ -237,6 +241,7 @@ def teacher_tab_manage_subjects():
         st.info("No subjects created yet.")
 
 
+# Method for Teacher Attendance Records Screen:
 def teacher_tab_attendance_records():
     st.header("Attendance Records:")
 
