@@ -5,11 +5,16 @@ import time
 
 from src.ui.base_layout import style_base_layout
 from src.ui.base_layout import style_background_dashboard
+
 from src.components.header import header_dashboard
 from src.components.footer import footer_dashboard
+from src.components.dialog_enroll import enroll_dialog
+from src.components.subject_card import subject_card
+
 from src.pipeline.face_pipeline import predict_attendance, get_face_embeddings, train_classifier
 from src.pipeline.voice_pipeline import get_voice_embedding
-from src.database.db import get_all_students, create_student
+
+from src.database.db import get_all_students, create_student, get_student_subjects, get_student_attendance, un_enroll_student_to_subject
 
 
 def student_screen():
@@ -97,7 +102,7 @@ def student_screen():
             except Exception:
                 st.error("Audio record / data Failed.")
 
-            if st.button("Crate your account.", type="primary"):
+            if st.button("Create your account.", type="primary"):
                 if student_name:
                     with st.spinner("Creating your new Profile..."):
 
@@ -141,5 +146,87 @@ def student_screen():
 
 # Method for Student Dashboard Screen:
 def student_dashboard():
-    st.header("Student Dashboard:")
+    if "toast_message" in st.session_state:
+        st.toast(st.session_state.toast_message)
+        del st.session_state.toast_message
+
+    student_data = st.session_state.student
+    student_id = student_data['student_id']
+    col, col2 = st.columns(2, vertical_alignment="center", gap="xxlarge")
+
+    with col:
+        header_dashboard()
+
+    with col2:
+        st.subheader(f"Welcome, {student_data['name']}")
+        if st.button("Log Out", type="secondary", key="login-back-button", shortcut="control+backspace"):
+            st.session_state['is_login'] = False
+            del st.session_state.student
+            st.rerun()
+
+    st.space()
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+        st.header("Your Enrolled Subjects:")
+
+    with col2:
+        if st.button("Enroll in Subject", type="primary", width="stretch"):
+            enroll_dialog()
+
+    st.divider()
+
+    with st.spinner("Loading your subjects..."):
+        subjects = get_student_subjects(student_id)
+        logs = get_student_attendance(student_id)
+
+    stats_map = {}
+
+    for log in logs:
+        sid = log['subject_id']
+
+        if sid not in stats_map:
+            stats_map[sid] = {"total": 0, "attended": 0}
+
+        stats_map[sid]["total"] += 1
+
+        if log.get("is_present"):
+            stats_map[sid]["attended"] += 1
+
+    cols = st.columns(2)
+
+    for i, sub_node in enumerate(subjects):
+        sub = sub_node["subjects"]
+        sid = sub["subject_id"]
+
+        stats = stats_map.get(sid, {"total": 0, "attended": 0})
+
+        def un_enroll_button():
+            if st.button(
+                "Unenroll from this course",
+                type="tertiary",
+                use_container_width=True,
+                key=f"unenroll_{sid}",
+                icon=":material/delete_forever:"
+            ):
+                un_enroll_student_to_subject(student_id, sid)
+
+                st.session_state.toast_message = f"Unenrolled from {sub['name']} successfully!"
+
+                st.rerun()
+
+        with cols[i % 2]:
+            subject_card(
+                name=sub["name"],
+                code=sub["subject_code"],
+                section=sub["section"],
+                stats=[
+                    ("📅", "Total", stats["total"]),
+                    ("✅", "Attended", stats["attended"])
+                ],
+                footer_callback=un_enroll_button
+            )
+
+    footer_dashboard()
 
