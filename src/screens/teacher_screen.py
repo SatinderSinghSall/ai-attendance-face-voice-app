@@ -15,12 +15,13 @@ from src.components.dialog_share_subject import share_subject_dialog
 from src.components.dialog_add_photos import add_photos_dialog
 from src.components.dialog_attendance_result import attendance_result_dialog
 from src.components.dialog_voice_attendance import voice_attendance_dialog
+from src.components.dialog_attendance_details import attendance_details_dialog
 
 from src.database.config import supabase
 
 from src.pipeline.face_pipeline import predict_attendance
 
-from src.database.db import check_teacher_exists, create_teacher, teacher_login, get_teacher_subjects
+from src.database.db import check_teacher_exists, create_teacher, teacher_login, get_teacher_subjects, get_attendance_for_teacher
 
 
 def teacher_screen():
@@ -428,4 +429,78 @@ def teacher_tab_manage_subjects():
 # Method for Teacher Attendance Records Screen:
 def teacher_tab_attendance_records():
     st.header("Attendance Records:")
+    teacher_id = st.session_state.teacher_data['teacher_id']
+
+    records = get_attendance_for_teacher(teacher_id)
+
+    if not records:
+        st.info("No attendance records found yet.")
+        return
+
+    data = []
+
+    for r in records:
+        ts = r.get('timestamp')
+
+        try:
+            dt_obj = datetime.fromisoformat(ts) if ts else None
+            formatted_time = dt_obj.strftime("%Y-%m-%d %I:%M %p") if dt_obj else "N/A"
+            ts_group = dt_obj.replace(microsecond=0) if dt_obj else None
+        except Exception:
+            formatted_time = "Invalid Time"
+            ts_group = None
+
+        subject = r.get('subjects') or {}
+
+        data.append({
+            "ts_group": ts_group,
+            "Time": formatted_time,
+            "Subject": subject.get('name', 'Unknown'),
+            "Subject Code": subject.get('subject_code', 'N/A'),
+            "is_present": bool(r.get('is_present', False))
+        })
+
+    df = pd.DataFrame(data)
+
+    summary = (
+        df.groupby(['ts_group', 'Time', 'Subject', 'Subject Code'])
+        .agg(
+            Present_Count=('is_present', 'sum'),
+            Total_Count=('is_present', 'count')
+        ).reset_index()
+    )
+
+    summary['Attendance Stats'] = (
+        "✅ " + summary['Present_Count'].astype(str) + " / "
+        + summary['Total_Count'].astype(str) + " Students"
+    )
+
+    summary['Percentage'] = (
+        (summary['Present_Count'] / summary['Total_Count']) * 100
+    ).round(1).astype(str) + '%'
+
+    display_df = summary.sort_values(by='ts_group', ascending=False)
+
+    selected_index = st.selectbox(
+        "Select a record to view details",
+        options=display_df.index,
+        format_func=lambda i: f"{display_df.loc[i, 'Time']} | {display_df.loc[i, 'Subject']}"
+    )
+
+    selected_row = display_df.loc[selected_index]
+
+    if st.button("View Details", type="primary"):
+        from src.components.dialog_attendance_details import attendance_details_dialog
+
+        attendance_details_dialog(
+            selected_row['ts_group'],
+            selected_row['Subject Code'],
+            selected_row['Subject']
+        )
+
+    st.dataframe(
+        display_df[['Time', 'Subject', 'Subject Code', 'Attendance Stats', 'Percentage']],
+        use_container_width=True,
+        hide_index=True
+    )
 
