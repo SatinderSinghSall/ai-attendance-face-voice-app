@@ -1,3 +1,6 @@
+# Deployment & Front-End:
+streamlit
+
 # Utilities:
 numpy
 pandas
@@ -19,9 +22,6 @@ segno
 
 # Image Preprocessing:
 pillow
-
-# Deployment & Front-End:
-streamlit
 
 # Voice Recognition:
 librosa
